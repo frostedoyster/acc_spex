@@ -29,15 +29,23 @@ def benchmark(dtype, device):
     finish = time.time()
     print(f"The accelerated implementation fwd took {finish-start} seconds")
 
-    '''
+    for l in range(l_max+1):
+        radial_features[l].requires_grad_(True)
+        angular_features[l].requires_grad_(True)
+
+    for _ in range(10):
+        result = acc_spex(centers, neighbors, radial_features, angular_features, node_species, n_species)
+        loss = torch.sum(torch.stack([torch.sum(result[l]) for l in range(l_max+1)]))
+        loss.backward()
+
     start = time.time()
     for _ in range(1000):
-        loss = torch.sum(acc_spex(a, b, indices, nnodes))
+        result = acc_spex(centers, neighbors, radial_features, angular_features, node_species, n_species)
+        loss = torch.sum(torch.stack([torch.sum(result[l]) for l in range(l_max+1)]))
         loss.backward()
-    torch.cuda.synchronize()
+    if device == "cuda": torch.cuda.synchronize()
     finish = time.time()
     print(f"The accelerated implementation fwd + bwd took {finish-start} seconds")
-    '''
 
 
 if __name__ == "__main__":

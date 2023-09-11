@@ -21,29 +21,33 @@ def test(dtype, device):
     centers[where_20] = 19
 
     neighbors = torch.randint(n_nodes, (n_edges,), device=device)
-    radial_features = [torch.rand(n_edges, n_max[l], dtype=dtype, device=device) for l in range(l_max+1)]
-    angular_features = [torch.rand(n_edges, 2*l+1, dtype=dtype, device=device) for l in range(l_max+1)]
+    radial_features_ref = [torch.rand(n_edges, n_max[l], dtype=dtype, device=device, requires_grad=True) for l in range(l_max+1)]
+    angular_features_ref = [torch.rand(n_edges, 2*l+1, dtype=dtype, device=device, requires_grad=True) for l in range(l_max+1)]
+    radial_features_acc = [radial_features_ref[l].clone().detach() for l in range(l_max+1)]
+    angular_features_acc = [angular_features_ref[l].clone().detach() for l in range(l_max+1)]
+    for l in range(l_max+1):
+        radial_features_acc[l].requires_grad_(True)
+        angular_features_acc[l].requires_grad_(True)
     node_species = torch.randint(n_species, (n_nodes,), device=device)
 
     # create a missing species:
     where_1 = torch.where(node_species == 1)[0]
     node_species[where_1] = 2
 
-    ref_spex_result = ref_spex(centers, neighbors, radial_features, angular_features, node_species, n_species)
-    acc_spex_result = acc_spex(centers, neighbors, radial_features, angular_features, node_species, n_species)
+    ref_spex_result = ref_spex(centers, neighbors, radial_features_ref, angular_features_ref, node_species, n_species)
+    acc_spex_result = acc_spex(centers, neighbors, radial_features_acc, angular_features_acc, node_species, n_species)
 
     for l in range(l_max+1):
         assert torch.allclose(ref_spex_result[l], acc_spex_result[l])
  
-    """    
-    loss_ref = torch.sum(out_ref)
+    loss_ref = torch.sum(torch.stack([torch.sum(ref_spex_result[l]) for l in range(l_max+1)]))
     loss_ref.backward()
-    loss_acc = torch.sum(out_acc)
+    loss_acc = torch.sum(torch.stack([torch.sum(acc_spex_result[l]) for l in range(l_max+1)]))
     loss_acc.backward()
 
-    assert torch.allclose(a_ref.grad, a_acc.grad)
-    assert torch.allclose(b_ref.grad, b_acc.grad)
-    """
+    for l in range(l_max+1):
+        assert torch.allclose(radial_features_ref[l].grad, radial_features_acc[l].grad)
+        assert torch.allclose(angular_features_ref[l].grad, angular_features_acc[l].grad)    
 
     print("Assertions passed successfully!")
 

@@ -73,6 +73,81 @@ torch::Tensor forward_t(
 }
 
 
+template<typename scalar_t>
+std::vector<torch::Tensor> backward_t(
+    torch::Tensor grad_output,
+    torch::Tensor first_occurrences,
+    torch::Tensor radial_features,
+    torch::Tensor angular_features,
+    torch::Tensor neighbor_species,
+    long n_nodes,
+    long n_species
+) {
+    long n_max_l = radial_features.size(1);
+    long m_size = angular_features.size(1);
+    long n_edges = neighbor_species.size(0);
+
+    scalar_t* grad_output_ptr = grad_output.data_ptr<scalar_t>();
+    scalar_t* radial_features_ptr = radial_features.data_ptr<scalar_t>();
+    scalar_t* angular_features_ptr = angular_features.data_ptr<scalar_t>();
+    long* first_occurrences_ptr = first_occurrences.data_ptr<long>();
+    long* neighbor_species_ptr = neighbor_species.data_ptr<long>();
+
+    torch::Tensor grad_radial = torch::Tensor();
+    torch::Tensor grad_angular = torch::Tensor();
+
+    if (radial_features.requires_grad()) {
+        grad_radial = torch::zeros_like(radial_features);
+        scalar_t* grad_radial_ptr = grad_radial.data_ptr<scalar_t>();
+
+        #pragma omp parallel for schedule(dynamic)
+        for (long i_node = 0; i_node < n_nodes; i_node++) {
+            long first_occurrence = first_occurrences_ptr[i_node];
+            long last_occurrence;
+            if (i_node == n_nodes - 1) {
+                last_occurrence = n_edges;
+            } else {
+                last_occurrence = first_occurrences_ptr[i_node+1];
+            }
+            for (long i_edge = first_occurrence; i_edge < last_occurrence; i_edge++) {
+                for (long m = 0; m < m_size; m++) {
+                    for (long n = 0; n < n_max_l; n++) {
+                        grad_radial_ptr[i_edge*n_max_l + n] +=
+                        grad_output_ptr[i_node*m_size*n_species*n_max_l + m*n_species*n_max_l + neighbor_species_ptr[i_edge]*n_max_l + n] * angular_features_ptr[i_edge*m_size + m];
+                    }
+                }
+            }
+        }
+    }
+
+    if (angular_features.requires_grad()) {
+        grad_angular = torch::zeros_like(angular_features);
+        scalar_t* grad_angular_ptr = grad_angular.data_ptr<scalar_t>();
+
+        #pragma omp parallel for schedule(dynamic)
+        for (long i_node = 0; i_node < n_nodes; i_node++) {
+            long first_occurrence = first_occurrences_ptr[i_node];
+            long last_occurrence;
+            if (i_node == n_nodes - 1) {
+                last_occurrence = n_edges;
+            } else {
+                last_occurrence = first_occurrences_ptr[i_node+1];
+            }
+            for (long i_edge = first_occurrence; i_edge < last_occurrence; i_edge++) {
+                for (long m = 0; m < m_size; m++) {
+                    for (long n = 0; n < n_max_l; n++) {
+                        grad_angular_ptr[i_edge*m_size + m] +=
+                        grad_output_ptr[i_node*m_size*n_species*n_max_l + m*n_species*n_max_l + neighbor_species_ptr[i_edge]*n_max_l + n] * radial_features_ptr[i_edge*n_max_l + n];
+                    }
+                }
+            }
+        }
+    }
+
+    return {torch::Tensor(), grad_radial, grad_angular, torch::Tensor(), torch::Tensor(), torch::Tensor()};
+}
+
+
 class SpexL : public torch::autograd::Function<SpexL> {
 
 public:
@@ -101,7 +176,22 @@ public:
     }
 
     static std::vector<torch::Tensor> backward(torch::autograd::AutogradContext *ctx, std::vector<torch::Tensor> grad_outputs) {
-        throw std::runtime_error("Not implemented");
+        std::vector<torch::Tensor> saved_variables = ctx->get_saved_variables();
+        torch::Tensor first_occurrences = saved_variables[0];
+        torch::Tensor radial_features = saved_variables[1];
+        torch::Tensor angular_features = saved_variables[2];
+        torch::Tensor neighbor_species = saved_variables[3];
+        long n_nodes = ctx->saved_data["n_nodes"].toInt();
+        long n_species = ctx->saved_data["n_species"].toInt();
+
+        // Dispatch type by hand
+        if (radial_features.dtype() == c10::kDouble) {
+            return backward_t<double>(grad_outputs[0].contiguous(), first_occurrences, radial_features, angular_features, neighbor_species, n_nodes, n_species);
+        } else if (radial_features.dtype() == c10::kFloat) {
+            return backward_t<float>(grad_outputs[0].contiguous(), first_occurrences, radial_features, angular_features, neighbor_species, n_nodes, n_species);
+        } else {
+            throw std::runtime_error("Unsupported dtype");
+        }
     }
 };
 
