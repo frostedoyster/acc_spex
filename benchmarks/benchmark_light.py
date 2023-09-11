@@ -71,16 +71,6 @@ def benchmark(dtype, device):
     finish = time.time()
     print(f"The accelerated implementation fwd + bwd took {finish-start} seconds")
 
-    '''
-    start = time.time()
-    for _ in range(1000):
-        loss = torch.sum(acc_spex(a, b, indices, nnodes))
-        loss.backward()
-    if device == "cuda": torch.cuda.synchronize()
-    finish = time.time()
-    print(f"The accelerated implementation fwd + bwd took {finish-start} seconds")
-    '''
-
 
 if __name__ == "__main__":
     benchmark(torch.float32, "cpu")
@@ -89,4 +79,4 @@ if __name__ == "__main__":
     if torch.cuda.is_available():
         benchmark(torch.float32, "cuda")
         benchmark(torch.float64, "cuda")
-     """
+    """

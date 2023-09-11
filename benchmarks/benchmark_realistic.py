@@ -55,4 +55,4 @@ if __name__ == "__main__":
     if torch.cuda.is_available():
         benchmark(torch.float32, "cuda")
         benchmark(torch.float64, "cuda")
-     """
+    """
