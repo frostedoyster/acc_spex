@@ -25,7 +25,7 @@ def benchmark(dtype, device):
     start = time.time()
     for _ in range(1000):
         acc_spex(centers, neighbors, radial_features, angular_features, node_species, n_species)
-    torch.cuda.synchronize()
+    if device == "cuda": torch.cuda.synchronize()
     finish = time.time()
     print(f"The accelerated implementation fwd took {finish-start} seconds")
 

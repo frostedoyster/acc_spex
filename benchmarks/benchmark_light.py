@@ -76,7 +76,7 @@ def benchmark(dtype, device):
     for _ in range(1000):
         loss = torch.sum(acc_spex(a, b, indices, nnodes))
         loss.backward()
-    torch.cuda.synchronize()
+    if device == "cuda": torch.cuda.synchronize()
     finish = time.time()
     print(f"The accelerated implementation fwd + bwd took {finish-start} seconds")
     '''
