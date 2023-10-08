@@ -1,5 +1,5 @@
-from setuptools import setup#, find_packages
-from torch.utils.cpp_extension import CppExtension, CUDAExtension, BuildExtension#,CUDA_HOME
+from setuptools import setup  # , find_packages
+from torch.utils.cpp_extension import CppExtension, CUDAExtension, BuildExtension  # ,CUDA_HOME
 import os
 import re
 from torch import cuda
@@ -8,13 +8,15 @@ from torch import cuda
 # Hack to remove lib.*.so from the output .so files.
 from distutils.command.install_lib import install_lib as _install_lib
 
+
 def batch_rename(src, dst, src_dir_fd=None, dst_dir_fd=None):
     '''Same as os.rename, but returns the renaming result.'''
     os.rename(src, dst,
               src_dir_fd=src_dir_fd,
               dst_dir_fd=dst_dir_fd
-    )
+              )
     return dst
+
 
 class _CommandInstallCythonized(_install_lib):
     def __init__(self, *args, **kwargs):
@@ -42,7 +44,6 @@ ext_module_cpp = CppExtension(
 
 ext_modules = [ext_module_cpp]
 
-"""
 if cuda.is_available():
     ext_module_cuda = CUDAExtension(
         "acc_spex.lib.spex_cu",
@@ -50,7 +51,7 @@ if cuda.is_available():
         extra_compile_args={'nvcc': []}
     )
     ext_modules.append(ext_module_cuda)
-"""
+
 
 setup(
     name='acc_spex',

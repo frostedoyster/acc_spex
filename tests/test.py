@@ -25,6 +25,10 @@ def test(dtype, device):
     angular_features_ref = [torch.rand(n_edges, 2*l+1, dtype=dtype, device=device, requires_grad=True) for l in range(l_max+1)]
     radial_features_acc = [radial_features_ref[l].clone().detach() for l in range(l_max+1)]
     angular_features_acc = [angular_features_ref[l].clone().detach() for l in range(l_max+1)]
+    
+    for i, (radial, angular) in enumerate(zip(radial_features_acc, angular_features_acc)):
+        print (i, radial.shape, angular.shape)
+
     for l in range(l_max+1):
         radial_features_acc[l].requires_grad_(True)
         angular_features_acc[l].requires_grad_(True)
@@ -36,6 +40,8 @@ def test(dtype, device):
 
     ref_spex_result = ref_spex(centers, neighbors, radial_features_ref, angular_features_ref, node_species, n_species)
     acc_spex_result = acc_spex(centers, neighbors, radial_features_acc, angular_features_acc, node_species, n_species)
+    print ("--Output Features--", len(acc_spex_result))
+    print ([feat.shape for feat in acc_spex_result])
 
     for l in range(l_max+1):
         assert torch.allclose(ref_spex_result[l], acc_spex_result[l])
