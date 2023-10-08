@@ -60,13 +60,15 @@ __global__ void spex_kernel(const torch::PackedTensorAccessor64<scalar_t, 2, tor
     // edges should be ordered by (species, edge_idx). neighbour_indices_start/end count the index starts and ends for each species type
     // e.g for 1 atom with 10 neighbours of two species types:
 
-    // edge_index: 0 1 2 3 4 5 6 7 8 9
-    // species_type: 0 0 0 0 1 1 1 1 1
+    // edge_index: 0 1 2 3 4 5 6 7 8 9 : 10 edges
+    // species_type: 0 0 0 0 1 1 1 1 1 : 2 species types
+    // receiver_list: 0 0 0 0 0 0 0 0 0 0 : 0-th node
 
     // neighbour_indices_start[0][0] = 0
     // neighbour_indices_end[0][0] = 4
     // neighbour_indices_start[1][0] = 5
     // neighbour_indices_end[1][0] = 9
+    
     for (int species = 0; species < nspecies; species++)
     {
 
